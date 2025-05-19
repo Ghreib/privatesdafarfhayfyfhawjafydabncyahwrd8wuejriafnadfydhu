@@ -1,0 +1,1097 @@
+--[[
+
+1)  STICKY AIM ✅
+2)  FORCE HIT ✅ / silent aim ✅
+3)  closest to mouse ✅
+4)  strafe with keybind ❌
+5)  resolver ✅
+6)  c frame ✅
+7)  going below the floor ✅
+8)  health, forcefield, local player death ✅
+9)  auto shoot ✅
+10) highlight✅
+11) Void ✅
+
+Message To Whoever i send this to, This is pretty messy and uncleaned due to me being lazy and i was gonna put it into a ui so thats why its like this.
+
+It is buggy so sorry in advanced for that.
+
+]]
+
+local NiggerCom = {
+    Combat = {
+        rage_bot = {
+            Enabled = true;
+            Keybind = Enum.KeyCode.F;
+            Prediction = 0.0964; -- 0.09375
+            Hit_part = "Head";
+            Misc = {
+				AutoPred = true;
+				AutoShoot = false;
+				AutoShootDelay = 0;
+                Auto_Select = false;
+                Checks = {
+                    Un_Target = {
+                        Local_Death = false;
+                        Void = false;
+                        Dead = true;
+                        ForceField = false
+                    };
+                    Ignore = {
+                        Local_Death = false;
+                        Void = false;
+                        Dead = false;
+                        ForceField = false
+                    }
+                }
+            }
+        };
+        Force_Hit = {
+            Enabled = false;
+            HitPart = "Head";
+            Keybind = Enum.KeyCode.C
+        };
+        legit_bot = {
+            Enabled = false;
+            Keybind = Enum.KeyCode.C;
+            Prediction = 0.0964; -- 0.09375
+            HitPart = "HumanoidRootPart";
+            ClosestPart = true;
+            Misc = {
+                Smoothness = 0.1;
+                Checks = {
+                }
+            }
+        }
+    };
+    HvH = {
+        Antis = {
+            Modes = "Void"; -- Random, Void, Underground
+            ServerDesynchronization = true;
+            Key = Enum.KeyCode.B;
+            GroundValue = -6;
+            Void = false,
+            Void_Key = Enum.KeyCode.Y;
+            Resolver = true
+        };
+    };
+    Visualization = {
+        Fov = {
+            Properties = {
+                Visible = true;
+                Radius = 500;
+                Color = Color3.fromRGB(173, 216, 230);
+                Transparency = 1;
+            }
+        };
+        On_Target = {
+            Highlight = {Enabled = true; Color = Color3.fromRGB(173, 216, 230); Outline = Color3.fromRGB(1, 73, 97)};
+            Snapline = {Enabled = true; Color = Color3.fromRGB(173, 216, 230); Thickness = 1} 
+        }
+    };
+    Misc = {
+		Strafe = {
+			Enabled = false; 
+			StrafeKey = Enum.KeyCode.Z;
+			CircleSpeed = 10;
+			Distance = 7.19;
+			Height =  0;
+		};
+        player = {
+			SpeedEnabled = true,
+			Speed = 20,
+			SpeedKey = Enum.KeyCode.X,
+
+            FlyEnabled = false,
+			FlySpeed = 400,
+			FlyKey = Enum.KeyCode.X,
+        }
+    }
+}
+-- Esp Settings
+local EspEnabled = true
+local maxDistance = 1000
+local showDisplayName = false
+local boxColor = Color3.fromRGB(255, 255, 255)
+local healthColor = Color3.fromRGB(0, 255, 0)
+local textColor = Color3.fromRGB(240, 240, 240)
+local boxThickness = 1
+local nameTextSize = 13
+local infoTextSize = 12 
+local shadowOffset = Vector2.new(1, 1)
+
+--Mod Dtc Settings
+local ModCheck = true
+local GROUP_ID = 34199407 
+local NOTIFICATION_DURATION = 10
+local CHECK_INTERVAL = 5 
+
+local Script = {
+    Targeting = { Target = nil },
+    Data = {
+		Players = {}
+	},
+    Functions = {},
+    Connections = {},
+    Drawings = {},
+    Utility = {
+        Gun = {},
+        SavedDesync = nil
+    },
+    Data = {
+        Toggles = {
+			Speed = false,
+			Fly = false,
+            ServerDesynchronization = false,
+        },
+        LastPosition = nil,
+    }
+}
+--------------------------------------------------------------------- [[ Services ]] ---------------------------------------------------------------------
+local Game = function(service) return cloneref(game:GetService(service)) end
+local Players = Game("Players")
+local Workspace = workspace
+local Stats = Game("Stats")
+local RunService = Game("RunService")
+local UserInputService = Game("UserInputService")
+--
+local Client = Players.LocalPlayer
+local Mouse = Client:GetMouse()
+local Camera = Workspace.CurrentCamera
+local Angle = 0 
+local PreviousVelocity = Vector3.zero
+--
+local Snapline = Drawing.new("Line"); Snapline.Thickness = NiggerCom.Visualization.On_Target.Snapline.Thickness; Snapline.Color = NiggerCom.Visualization.On_Target.Snapline.Color; Snapline.Transparency = NiggerCom.Visualization.On_Target.Snapline.Thickness
+local Highlight = Instance.new("Highlight"); Highlight.Parent = gethui(); Highlight.FillColor = NiggerCom.Visualization.On_Target.Highlight.Color; Highlight.OutlineColor = NiggerCom.Visualization.On_Target.Highlight.Outline; Highlight.FillTransparency = 0.5
+local FakeCharacter = game:GetObjects("rbxassetid://8246626421")[1]; FakeCharacter.Humanoid:Destroy(); FakeCharacter.Head.Face:Destroy(); FakeCharacter.Parent = Workspace; FakeCharacter.HumanoidRootPart.Velocity = Vector3.new(); FakeCharacter.HumanoidRootPart.CFrame = CFrame.new(9999,9999,9999); FakeCharacter.HumanoidRootPart.Transparency = 1; FakeCharacter.HumanoidRootPart.CanCollide = false for i,v in pairs(FakeCharacter:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
+local FakeCharacterHighlight = Instance.new("Highlight"); FakeCharacterHighlight.Parent = gethui(); FakeCharacterHighlight.Adornee = FakeCharacter; FakeCharacterHighlight.FillColor = Color3.fromRGB(173, 216, 230); FakeCharacterHighlight.OutlineColor = Color3.fromRGB(15, 64, 80); FakeCharacterHighlight.FillTransparency = 0.5
+Workspace.FallenPartsDestroyHeight = 0/0
+--------------------------------------------------------------------- [[ Drawings ]] ---------------------------------------------------------------------
+do 
+    do 
+        Script.Functions.CreateConnection = function(Signal, Function)
+            table.insert(Script.Connections, Signal:Connect(Function))
+        end
+
+        Script.Functions.CreateDrawing = function(Type, Properties)
+            local NewDrawing = Drawing.new(Type)
+            for i, v in next, Properties or {} do
+                NewDrawing[i] = v
+            end
+            return NewDrawing
+        end
+        Script.Drawings.Fov = Script.Functions.CreateDrawing("Circle", {Visible = NiggerCom.Visualization.Fov.Properties.Visible, Radius = NiggerCom.Visualization.Fov.Properties.Radius, Thickness = 1, Transparency = NiggerCom.Visualization.Fov.Properties.Transparency, Color = NiggerCom.Visualization.Fov.Properties.Color})
+    end
+--------------------------------------------------------------------- [[ Functions ]] ---------------------------------------------------------------------
+    do
+        
+        do
+            Script.Functions.Dead = function(Plr)
+                local Dead = false
+                if Plr and Plr.Character and NiggerCom.Combat.rage_bot.Misc.Checks.Un_Target.Dead and NiggerCom.Combat.rage_bot.Misc.Checks.Ignore.Dead then
+                    if Plr.Character:FindFirstChild("BodyEffects") then
+                        if Plr.Character.BodyEffects:FindFirstChild("K.O") then
+                            Dead = Plr.Character.BodyEffects["K.O"].Value
+                        elseif Plr.Character.BodyEffects:FindFirstChild("KO") then
+                            Dead = Plr.Character.BodyEffects.KO.Value
+                        end
+                    end
+                end
+                return Dead
+            end
+        
+            Script.Functions.LocalDead = function()
+                local Char = Client.Character
+                if Char and Char:FindFirstChildOfClass("Humanoid") then
+					local Humanoid = Char:FindFirstChildOfClass("Humanoid")
+					if Char:FindFirstChild("BodyEffects") then
+						local BodyEffects = Char.BodyEffects
+						if BodyEffects:FindFirstChild("K.O") and BodyEffects["K.O"].Value then
+							return true
+						elseif BodyEffects:FindFirstChild("KO") and BodyEffects.KO.Value then
+							return true
+						end
+					end
+					if Humanoid and Humanoid.Health <= 7.5 then return true end
+                end
+                return false
+            end
+        
+            Script.Functions.ForceField = function(Player)
+                if not Player or not Player.Character then return false end
+                return Player.Character:FindFirstChildOfClass("ForceField") ~= nil
+            end
+        
+            Script.Functions.Void = function(Player)
+                if not Player or not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then
+                    return false
+                end
+        
+                local YThreshold = -300
+                return Player.Character.HumanoidRootPart.Position.Y < YThreshold
+            end
+        
+            Script.Functions.Validate = function(Player, Character)
+			    if (NiggerCom.Combat.Force_Hit.Enabled or NiggerCom.Combat.rage_bot.Misc.AutoShoot) and (Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")) then
+					local TargetRoot = Player.Character:FindFirstChild("HumanoidRootPart")
+					if (workspace.CurrentCamera.CFrame.p - TargetRoot.Position).Magnitude >= 200 then 
+						return false
+					end
+                end
+				
+                if NiggerCom.Combat.rage_bot.Misc.Checks.Un_Target.Dead and Script.Functions.Dead(Player) then
+                    return false
+                end
+        
+                if NiggerCom.Combat.rage_bot.Misc.Checks.Ignore.Dead and Script.Functions.Dead(Player) then
+                    return false
+                end
+        
+                if NiggerCom.Combat.rage_bot.Misc.Checks.Ignore.Local_Death and Script.Functions.LocalDead() then
+                    return false
+                end
+
+                if NiggerCom.Combat.rage_bot.Misc.Checks.Un_Target.Local_Death and Script.Functions.LocalDead() then
+                    return false
+                end
+        
+        
+                if NiggerCom.Combat.rage_bot.Misc.Checks.Ignore.Void and Script.Functions.Void(Player) then
+                    return false
+                end
+        
+                if NiggerCom.Combat.rage_bot.Misc.Checks.Un_Target.Void and Script.Functions.Void(Player) then
+                    return false
+                end
+        
+                return true
+            end
+        
+        end
+        
+
+        Script.Functions.GetClosestPlayer = function()
+            local ClosestPlayer = nil
+            local ClosestDistance = math.huge
+            for _, Player in ipairs(Players:GetPlayers()) do
+                if Player ~= Client and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    if Player.Character:FindFirstChild("HumanoidRootPart") then
+                        local ScreenPosition, OnScreen = Camera:WorldToViewportPoint(Player.Character:FindFirstChild("HumanoidRootPart").Position)
+                        if not OnScreen or not Script.Functions.Validate(Player, Player.Character) then continue end
+                        if OnScreen then
+                            local MousePosition = Vector2.new(Mouse.X, Mouse.Y)
+                            local Distance = (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - MousePosition).Magnitude
+    
+                            if Distance < ClosestDistance and Distance <= Script.Drawings.Fov.Radius then
+                                ClosestDistance = Distance
+                                ClosestPlayer = Player
+                            end
+                        end
+                    end
+                end
+            end
+            return ClosestPlayer
+        end
+        Script.Functions.GetNearestPlayer = function(Fov)
+            local Distance = math.huge
+            local Target = nil
+    
+            for Index, Player in pairs(Script.Data.Players) do
+                if Player == Client or not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then continue end
+    
+                local Position, OnScreen = Camera:WorldToViewportPoint(Player.Character.HumanoidRootPart.Position)
+                local Magnitude = (Vector2.new(Position.X, Position.Y) - UserInputService:GetMouseLocation()).Magnitude
+    
+                if OnScreen and (Magnitude <= Distance and Magnitude <= Fov) then
+                    Distance = Magnitude
+                    Target = Player
+                end
+            end
+            return Target
+        end
+    
+        Script.Functions.GetClosestBodyPart = function(Character)
+            local Distance = math.huge
+            local ClosestPart = nil
+    
+            for Index, Part in pairs(Character:GetChildren()) do
+                if Part:IsA("BasePart") or Part:IsA("MeshPart") then
+					local Position, OnScreen = Camera:WorldToViewportPoint(Part.Position)
+					local Magnitude = (Vector2.new(Position.X, Position.Y) - UserInputService:GetMouseLocation()).Magnitude
+		
+					if (Magnitude <= Distance) then
+						Distance = Magnitude
+						ClosestPart = tostring(Part)
+					end
+				end
+            end
+            return ClosestPart
+        end
+		
+        Script.Functions.CalculateVelocity = function(Part, DeltaTime)
+			if Part and DeltaTime then
+				local oldpos, oldtick = Part.Position, tick()
+				task.wait(DeltaTime)
+				local newpos, newtick = Part.Position, tick()
+				local DeltaTime = (newtick - oldtick)
+				local DeltaPosition = (newpos - oldpos)
+				local Velocity = DeltaPosition * DeltaTime
+				return Vector3.new():Lerp(Velocity, 0.083)
+			else
+				return Vector3.new()
+			end
+        end
+    end
+end
+--------------------------------------------------------------------- [[ Inputs ]] ---------------------------------------------------------------------
+do ----[[ Input ]]----
+	local Locking = false
+    Script.Functions.CreateConnection(UserInputService.InputBegan, function(Input, gameProccessedEvent)
+        if gameProccessedEvent then return end
+        if Input.KeyCode == NiggerCom.Combat.rage_bot.Keybind then
+			Locking = not Locking
+			if Locking then
+            	Script.Targeting.Target = Script.Functions.GetClosestPlayer()
+			else
+				Script.Targeting.Target = nil
+			end
+		elseif Input.KeyCode == NiggerCom.Misc.Strafe.StrafeKey then
+			NiggerCom.Misc.Strafe.Enabled = not NiggerCom.Misc.Strafe.Enabled
+        elseif Input.KeyCode == NiggerCom.HvH.Antis.Key then
+            Script.Data.Toggles.ServerDesynchronization = not Script.Data.Toggles.ServerDesynchronization
+        elseif Input.KeyCode == NiggerCom.Misc.player.FlyKey and NiggerCom.Misc.player.FlyEnabled then
+            Script.Data.Toggles.Fly = not Script.Data.Toggles.Fly
+        elseif Input.KeyCode == NiggerCom.Misc.player.SpeedKey and NiggerCom.Misc.player.SpeedEnabled then
+            Script.Data.Toggles.Speed = not Script.Data.Toggles.Speed
+        elseif Input.KeyCode == NiggerCom.HvH.Antis.Void_Key then
+            NiggerCom.HvH.Antis.Void = not NiggerCom.HvH.Antis.Void
+        elseif Input.KeyCode == NiggerCom.Combat.Force_Hit.Keybind then 
+            NiggerCom.Combat.Force_Hit.Enabled = not NiggerCom.Combat.Force_Hit.Enabled
+        end
+    end)
+end
+
+do 
+    Script.Functions.CreateConnection(UserInputService.InputChanged, function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseMovement then 
+            Script.Drawings.Fov.Position = UserInputService:GetMouseLocation()
+        end 
+    end)
+end
+
+Script.Functions.CreateConnection(UserInputService.InputBegan, function(Input, gameProccessedEvent)
+    if gameProccessedEvent then return end
+
+    if Input.KeyCode == NiggerCom.Combat.legit_bot.Keybind and NiggerCom.Combat.legit_bot.Enabled then
+        if not Script.Targeting.Target then
+            Script.Targeting.Target = Script.Functions.GetNearestPlayer(Script.Drawings.Fov.Radius)
+        else
+            Script.Targeting.Target = nil
+        end
+    end
+end)
+
+--------------------------------------------------------------------- [[ FrameWork ]] ---------------------------------------------------------------------
+Script.Functions.CreateConnection(RunService.RenderStepped, function() -- // Silent Aim \\ --
+    local MousePos = UserInputService:GetMouseLocation()
+    Script.Drawings.Fov.Position = Vector2.new(MousePos.X, MousePos.Y)
+
+    local target = Script.Targeting.Target
+    if target and (not target.Character or not target.Character:FindFirstChild("HumanoidRootPart")) then
+        Script.Targeting.Target = nil
+    end
+
+    if NiggerCom.Combat.rage_bot.Misc.Auto_Select and not Script.Targeting.Target then
+        Script.Targeting.Target = Script.Functions.GetClosestPlayer()
+    end
+end)
+
+Script.Functions.CreateConnection(RunService.Heartbeat, function(Delta) 
+	if NiggerCom.Combat.rage_bot.Misc.AutoPred then
+		local Ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+		local Pred = (Ping / 800)
+		NiggerCom.Combat.rage_bot.Prediction = Pred
+		NiggerCom.Combat.legit_bot.Prediction = Pred
+	end
+	if Script.Targeting.Target and Script.Targeting.Target.Character then
+		if NiggerCom.Combat.rage_bot.Misc.AutoShoot and Script.Functions.Validate(Script.Targeting.Target, Script.Targeting.Target.Character) then
+			local Delay = NiggerCom.Combat.rage_bot.Misc.AutoShootDelay
+			local Tool = Client.Character and Client.Character:FindFirstChildOfClass("Tool")
+			if Tool then
+				task.wait(Delay)
+				Tool:Activate()
+			end
+		end
+	end
+	if NiggerCom.Combat.rage_bot.Enabled and NiggerCom.Combat.rage_bot.Misc.Auto_Select then
+        Script.Targeting.Target = Script.Functions.GetClosestPlayer()
+    end
+end)
+
+Script.Functions.CreateConnection(RunService.Heartbeat, function(Delta) --// Target Visuals \\--
+    if Script.Targeting.Target and Script.Targeting.Target.Character then
+        if NiggerCom.Visualization.On_Target.Highlight.Enabled then
+            Highlight.Adornee = Script.Targeting.Target.Character
+        else
+            Highlight.Adornee = nil
+        end
+    else
+        Highlight.Adornee = nil
+    end
+end)
+
+Script.Functions.CreateConnection(RunService.RenderStepped, function(Delta)
+    if NiggerCom.Combat.Force_Hit.Enabled then
+		if Script.Targeting.Target and Script.Targeting.Target.Character then
+			Highlight.Adornee = Script.Targeting.Target.Character
+		else
+			Highlight.Adornee = nil
+		end
+    end
+end)
+
+Script.Functions.CreateConnection(RunService.Heartbeat, function(Delta)
+    local Target = Script.Targeting.Target
+    if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
+        if NiggerCom.Visualization.On_Target.Snapline.Enabled then
+            local RootPart = Target.Character.HumanoidRootPart
+            local MousePos = UserInputService:GetMouseLocation()
+            local ScreenPos, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
+
+            if OnScreen then
+                if NiggerCom.Combat.rage_bot.Misc.Auto_Select then
+                    if (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(MousePos.X, MousePos.Y)).Magnitude <= Script.Drawings.Fov.Radius then
+                        Snapline.Visible = true
+                        Snapline.From = Vector2.new(MousePos.X, MousePos.Y)
+                        Snapline.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                    else
+                        Snapline.Visible = false
+                    end
+                else
+                    Snapline.Visible = true
+                    Snapline.From = Vector2.new(MousePos.X, MousePos.Y)
+                    Snapline.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                end
+            else
+                Snapline.Visible = false
+            end
+        else
+            Snapline.Visible = false
+        end
+    else
+        Snapline.Visible = false
+    end
+end)
+
+Script.Functions.CreateConnection(RunService.Heartbeat, function(Delta)
+    if NiggerCom.HvH.Antis.Resolver then 
+        local RootPart = Client.Character:FindFirstChild("HumanoidRootPart")
+		if RootPart then
+			local MeasuredVelocity = Script.Functions.CalculateVelocity(RootPart, Delta)
+			PreviousVelocity = MeasuredVelocity
+		end
+    end
+end)
+
+Script.Functions.CreateConnection(RunService.RenderStepped, function(Delta) --// Rage bot \\--
+    if NiggerCom.Combat.legit_bot.Enabled and Script.Targeting.Target and Script.Targeting.Target.Character and PreviousVelocity then
+        NiggerCom.HitPart = NiggerCom.Combat.legit_bot.ClosestPart and Script.Functions.GetClosestBodyPart(Script.Targeting.Target.Character) or NiggerCom.Combat.legit_bot.HitPart
+
+        local EndCFrame = CFrame.new(Camera.CFrame.p, Script.Targeting.Target.Character[NiggerCom.HitPart].Position + PreviousVelocity * NiggerCom.Combat.legit_bot.Prediction)
+
+        Camera.CFrame = Camera.CFrame:Lerp(EndCFrame, NiggerCom.Combat.legit_bot.Misc.Smoothness, Enum.EasingStyle.Elastic, Enum.EasingDirection.InOut)
+    end
+end)
+local VoidSpam = false
+Script.Functions.CreateConnection(RunService.Heartbeat, function(Delta) --// CSync \\--
+    if Client.Character and Client.Character:FindFirstChild("HumanoidRootPart") then
+        if NiggerCom.HvH.Antis.Void then
+			VoidSpam = not VoidSpam
+			Script.Utility.SavedDesync = Client.Character.HumanoidRootPart.CFrame
+			Client.Character.HumanoidRootPart.CFrame = VoidSpam and CFrame.new(math.random(-44444, 44444), -math.huge, math.random(-44444, 44444)) or Script.Utility.SavedDesync
+			FakeCharacter:SetPrimaryPartCFrame(Client.Character.HumanoidRootPart.CFrame)
+			RunService.RenderStepped:Wait()
+			Client.Character.HumanoidRootPart.CFrame = Script.Utility.SavedDesync
+		else
+			if not NiggerCom.Misc.Strafe.Enabled and (Script.Data.Toggles.ServerDesynchronization and NiggerCom.HvH.Antis.ServerDesynchronization) then
+				local Strafes = {
+					['Random'] = CFrame.new(Client.Character.HumanoidRootPart.Position - Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))),
+					['Void'] = CFrame.new(Client.Character.HumanoidRootPart.Position - Vector3.new(math.random(-44444, 44444), -math.huge, math.random(-44444, 44444))),
+					['Underground'] = CFrame.new(Client.Character.HumanoidRootPart.Position + Vector3.new(0, NiggerCom.HvH.Antis.GroundValue, 0))
+				}
+				
+				StrafeCF = Strafes[NiggerCom.HvH.Antis.Modes]
+				Script.Utility.SavedDesync = Client.Character.HumanoidRootPart.CFrame
+				Client.Character.HumanoidRootPart.CFrame = StrafeCF
+				FakeCharacter:SetPrimaryPartCFrame(Client.Character.HumanoidRootPart.CFrame)
+				RunService.RenderStepped:Wait()
+				Client.Character.HumanoidRootPart.CFrame = Script.Utility.SavedDesync
+			elseif NiggerCom.Misc.Strafe.Enabled and Script.Targeting.Target and Script.Targeting.Target.Character then
+				local Settings = NiggerCom.Misc.Strafe
+				Angle += Settings.CircleSpeed
+				Script.Utility.SavedDesync = Client.Character.HumanoidRootPart.CFrame
+				Client.Character.HumanoidRootPart.CFrame = Script.Targeting.Target.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(Angle), 0) * CFrame.new(0, Settings.Height, Settings.Distance)
+				FakeCharacter:SetPrimaryPartCFrame(Client.Character.HumanoidRootPart.CFrame)
+				RunService.RenderStepped:Wait()
+				Client.Character.HumanoidRootPart.CFrame = Script.Utility.SavedDesync
+			else
+				FakeCharacter:SetPrimaryPartCFrame(CFrame.new(99999, 99999, 999999))
+			end
+		end
+    end
+
+    if (Script.Data.Toggles.Speed) and (Client and Client.Character) then
+        Client.Character.HumanoidRootPart.CFrame = Client.Character.HumanoidRootPart.CFrame + Client.Character:FindFirstChild("Humanoid").MoveDirection * (NiggerCom.Misc.player.Speed/10)
+    end
+
+	if (Script.Data.Toggles.Fly) and (Client and Client.Character and Client.Character:FindFirstChild("HumanoidRootPart")) then
+		local RootPart = Client.Character.HumanoidRootPart
+		local MoveDirection = Vector3.zero
+		
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then MoveDirection = MoveDirection + Camera.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then MoveDirection = MoveDirection - Camera.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then MoveDirection = MoveDirection - Camera.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then MoveDirection = MoveDirection + Camera.CFrame.RightVector end
+		
+		if MoveDirection.Magnitude > 0 then
+			MoveDirection = MoveDirection.Unit * NiggerCom.Misc.player.FlySpeed
+		end
+		
+		RootPart.Velocity = MoveDirection
+	end
+end)
+-------------------------------------------------------------- [[ Hooks ]] ---------------------------------------------------------------------
+local grm = getrawmetatable(game)  -- // Silent Aim \\ --
+local index = grm.__index
+setreadonly(grm, false)
+
+grm.__index = function(self, Index)
+	if not checkcaller() and Index == "Hit" and self == Mouse and NiggerCom.Combat.rage_bot.Enabled then
+		local target = Script.Targeting.Target
+		if target and target.Character and target.Character:FindFirstChild(NiggerCom.Combat.rage_bot.Hit_part) and PreviousVelocity then
+			local part = target.Character[NiggerCom.Combat.rage_bot.Hit_part]
+			return CFrame.new(part.Position + (PreviousVelocity * NiggerCom.Combat.rage_bot.Prediction))
+		end
+    end
+    return index(self, Index)
+end
+
+local CSyncIndex; CSyncIndex = hookmetamethod(game, "__index", function(Self, Index)  -- // Csync \\ --
+    if not checkcaller() and ((NiggerCom.Misc.Strafe.Enabled and Script.Targeting.Target) or (Script.Data.Toggles.ServerDesynchronization and NiggerCom.HvH.Antis.ServerDesynchronization) or NiggerCom.HvH.Antis.Void) then
+		if Index == "CFrame" and Self.Name == "HumanoidRootPart" and Client.Character and Self.Parent == Client.Character and Script.Utility.SavedDesync then
+			return Script.Utility.SavedDesync
+		end
+	end
+    return CSyncIndex(Self, Index)
+end)
+
+local OriginalNameCall; OriginalNameCall = hookmetamethod(game, "__namecall", function(Object, ...)
+    local Arguments = {...}
+    local NameCallMethod = getnamecallmethod()
+
+    if not NiggerCom.Combat.Force_Hit.Enabled then
+        return OriginalNameCall(Object, ...)
+    end
+
+    if Script.Targeting.Target and Script.Targeting.Target.Character and NameCallMethod == "FireServer" and Object.Name == "MainEvent" and #Arguments > 0 and Arguments[1] == "Shoot" then
+        local AimPart = Script.Targeting.Target.Character[NiggerCom.Combat.Force_Hit.HitPart]
+        if AimPart then
+			for _, Table in pairs(Arguments[2][1]) do
+                Table["Instance"] = AimPart
+            end
+			for _, Table in pairs(Arguments[2][2]) do
+				Table["theOffset"] = CFrame.new()
+				Table["thePart"] = AimPart
+			end
+            return OriginalNameCall(Object, unpack(Arguments))
+        end
+    end
+    return OriginalNameCall(Object, ...)
+end)
+
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Storage
+local esp = {}
+local function createTextWithShadow(size)
+    local shadow = Drawing.new("Text")
+    shadow.Size = size
+    shadow.Center = true
+    shadow.Outline = false
+    shadow.Visible = true
+    shadow.Color = Color3.fromRGB(0, 0, 0)
+    shadow.Transparency = 0.6 
+    shadow.Font = 2
+
+    local text = Drawing.new("Text")
+    text.Size = size
+    text.Center = true
+    text.Outline = false
+    text.Visible = true
+    text.Color = textColor
+    text.Font = 2 
+
+    return {
+        Text = text,
+        Shadow = shadow
+    }
+end
+
+function createESP(player)
+    if player == LocalPlayer or esp[player] then return end
+
+    esp[player] = {
+        Box = Drawing.new("Square"),
+        Health = Drawing.new("Line"),
+        Name = createTextWithShadow(nameTextSize),
+        Info = createTextWithShadow(infoTextSize),
+        WeaponInfo = createTextWithShadow(infoTextSize)
+    }
+
+    local data = esp[player]
+    data.Box.Color = boxColor
+    data.Box.Thickness = boxThickness
+    data.Box.Filled = false
+
+    data.Health.Color = healthColor
+    data.Health.Thickness = 2
+end
+
+function removeESP(player)
+    if esp[player] then
+        for _, obj in pairs(esp[player]) do
+            if typeof(obj) == "table" then
+                for _, layer in pairs(obj) do
+                    if layer and layer.Remove then layer:Remove() end
+                end
+            elseif obj and obj.Remove then
+                obj:Remove()
+            end
+        end
+        esp[player] = nil
+    end
+end
+
+function clearESP()
+    if #esp > 0 then
+		for i,v in next, esp do
+		    if typeof(v) == "table" then
+                for _, layer in next, v do
+                    if layer and layer.Remove then layer:Remove() end
+                end
+            elseif v and v.Remove then
+                v:Remove()
+            end
+		end
+        table.clear(esp)
+    end
+end
+
+local function getCharacterSize(character)
+    if not character then return Vector3.new(3, 5, 3) end -- Default fallback size
+    
+    local success, size = pcall(function()
+        local primaryPart = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart")
+        if not primaryPart then return Vector3.new(3, 5, 3) end
+        local cframe, size = character:GetBoundingBox()
+        return size
+    end)
+    
+    if not success then return Vector3.new(3, 5, 3) end
+    return size
+end
+
+RunService.RenderStepped:Connect(function()
+    if not EspEnabled or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		clearESP()
+        return
+    end
+    
+    local localHRP = LocalPlayer.Character.HumanoidRootPart
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+            if not esp[player] then createESP(player) end
+
+            local hrp = player.Character.HumanoidRootPart
+            local humanoid = player.Character.Humanoid
+            local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+
+            local dist = (localHRP.Position - hrp.Position).Magnitude
+            local tool = player.Character:FindFirstChildOfClass("Tool")
+            local weapon = tool and tool.Name or "[None]"
+
+            local data = esp[player]
+
+            if onScreen and dist <= maxDistance then
+                local head = player.Character:FindFirstChild("Head")
+                local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                local rightLeg = player.Character:FindFirstChild("RightFoot") or player.Character:FindFirstChild("Right Leg")
+                local leftLeg = player.Character:FindFirstChild("LeftFoot") or player.Character:FindFirstChild("Left Leg")
+ 
+                local headPos = head and (head.Position + Vector3.new(0, head.Size.Y * 0.5, 0)) or
+                                (hrp.Position + Vector3.new(0, humanoid.HipHeight + 1.5, 0))
+                
+                local footPos
+                if rightLeg and leftLeg then
+                    footPos = Vector3.new(
+                        hrp.Position.X,
+                        math.min(rightLeg.Position.Y, leftLeg.Position.Y) - 0.8,
+                        hrp.Position.Z
+                    )
+                else
+                    footPos = hrp.Position - Vector3.new(0, humanoid.HipHeight + 0.8, 0)
+                end
+                
+                local headScreenPos = Camera:WorldToViewportPoint(headPos)
+                local footScreenPos = Camera:WorldToViewportPoint(footPos)
+
+                local boxHeight = math.abs(headScreenPos.Y - footScreenPos.Y)
+                local boxWidth = boxHeight * 0.5 -- Makes the width consistent relative to height
+                
+                local centerX = screenPos.X
+                local boxTopY = math.min(headScreenPos.Y, footScreenPos.Y) - 5 -- Padding above head
+
+                data.Box.Size = Vector2.new(boxWidth, boxHeight)
+                data.Box.Position = Vector2.new(centerX - (boxWidth / 2), boxTopY)
+                data.Box.Visible = true
+
+                local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                local barHeight = boxHeight * healthPercent
+                data.Health.From = Vector2.new(data.Box.Position.X - 4, data.Box.Position.Y + boxHeight)
+                data.Health.To = Vector2.new(data.Box.Position.X - 4, data.Box.Position.Y + boxHeight - barHeight)
+                data.Health.Visible = true
+
+                local nameText = showDisplayName and player.DisplayName or player.Name
+                local boxCenterX = data.Box.Position.X + boxWidth/2
+                local namePos = Vector2.new(boxCenterX, data.Box.Position.Y - 18)
+                data.Name.Text.Text = nameText
+                data.Name.Text.Position = namePos
+                data.Name.Text.Visible = true
+                data.Name.Shadow.Text = nameText
+                data.Name.Shadow.Position = namePos + shadowOffset
+                data.Name.Shadow.Visible = true
+
+                local distText = math.floor(dist) .. " studs"
+                local infoPos = Vector2.new(boxCenterX, data.Box.Position.Y + boxHeight + 2)
+                data.Info.Text.Text = distText
+                data.Info.Text.Position = infoPos
+                data.Info.Text.Visible = true
+                data.Info.Shadow.Text = distText
+                data.Info.Shadow.Position = infoPos + shadowOffset
+                data.Info.Shadow.Visible = true
+
+                local weaponText = "[" .. weapon .. "]"
+                local weaponPos = Vector2.new(boxCenterX, infoPos.Y + data.Info.Text.TextBounds.Y + 2)
+                data.WeaponInfo.Text.Text = weaponText
+                data.WeaponInfo.Text.Position = weaponPos
+                data.WeaponInfo.Text.Visible = true
+                data.WeaponInfo.Shadow.Text = weaponText
+                data.WeaponInfo.Shadow.Position = weaponPos + shadowOffset
+                data.WeaponInfo.Shadow.Visible = true
+            else
+                data.Box.Visible = false
+                data.Health.Visible = false
+                data.Name.Text.Visible = false
+                data.Name.Shadow.Visible = false
+                data.Info.Text.Visible = false
+                data.Info.Shadow.Visible = false
+                data.WeaponInfo.Text.Visible = false
+                data.WeaponInfo.Shadow.Visible = false
+            end
+        else
+            removeESP(player)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(removeESP)
+
+--Mod Dtc
+local GroupService = game:GetService("GroupService")
+local TweenService = game:GetService("TweenService")
+
+local modsInGame = {}
+local knownPlayers = {}
+local noModsNotified = false
+local notificationGUI = nil
+
+local function createNotificationGUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ModDetectorGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "NotificationFrame"
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    mainFrame.Size = UDim2.new(0, 400, 0, 100)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    mainFrame.BackgroundTransparency = 0.3
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Visible = false
+    mainFrame.Parent = screenGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = mainFrame
+
+    local statusBar = Instance.new("Frame")
+    statusBar.Name = "StatusBar"
+    statusBar.Position = UDim2.new(0, 0, 0, 0)
+    statusBar.Size = UDim2.new(1, 0, 0, 10)
+    statusBar.BackgroundColor3 = Color3.fromRGB(255, 50, 50) -- Red by default
+    statusBar.BorderSizePixel = 0
+    statusBar.Parent = mainFrame
+
+    local statusCorner = Instance.new("UICorner")
+    statusCorner.CornerRadius = UDim.new(0, 10)
+    statusCorner.Parent = statusBar
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "TitleLabel"
+    titleLabel.Position = UDim2.new(0, 0, 0, 15)
+    titleLabel.Size = UDim2.new(1, 0, 0, 30)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 20
+    titleLabel.Text = "MOD DETECTOR"
+    titleLabel.Parent = mainFrame
+ 
+    local messageLabel = Instance.new("TextLabel")
+    messageLabel.Name = "MessageLabel"
+    messageLabel.Position = UDim2.new(0, 0, 0, 45)
+    messageLabel.Size = UDim2.new(1, 0, 0, 45)
+    messageLabel.BackgroundTransparency = 1
+    messageLabel.Font = Enum.Font.Gotham
+    messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    messageLabel.TextSize = 16
+    messageLabel.Text = "Monitoring for Hood Customs moderators..."
+    messageLabel.TextWrapped = true
+    messageLabel.Parent = mainFrame
+
+    local shadowFrame = Instance.new("Frame")
+    shadowFrame.Name = "Shadow"
+    shadowFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    shadowFrame.Position = UDim2.new(0.5, 0, 0.5, 5)
+    shadowFrame.Size = UDim2.new(1, 10, 1, 10)
+    shadowFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadowFrame.BackgroundTransparency = 0.7
+    shadowFrame.BorderSizePixel = 0
+    shadowFrame.ZIndex = -1
+    shadowFrame.Parent = mainFrame
+  
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 10)
+    shadowCorner.Parent = shadowFrame
+
+    screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    return screenGui
+end
+
+local function showNotification(title, message, color, duration)
+    if not notificationGUI then
+        notificationGUI = createNotificationGUI()
+    end
+    
+    local frame = notificationGUI.NotificationFrame
+    local statusBar = frame.StatusBar
+    local titleLabel = frame.TitleLabel
+    local messageLabel = frame.MessageLabel
+    
+    titleLabel.Text = title
+    messageLabel.Text = message
+    statusBar.BackgroundColor3 = color or Color3.fromRGB(255, 50, 50)
+
+    frame.Visible = true
+    frame.Position = UDim2.new(0.5, 0, 0.02, 0) -- Start very close to top
+    frame.BackgroundTransparency = 1
+    titleLabel.TextTransparency = 1
+    messageLabel.TextTransparency = 1
+    statusBar.BackgroundTransparency = 1
+    frame.Shadow.BackgroundTransparency = 1
+
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(frame, tweenInfo, {
+        Position = UDim2.new(0.5, 0, 0.1, 0), -- Position even higher up on screen
+        BackgroundTransparency = 0.3
+    })
+    local tweenTitle = TweenService:Create(titleLabel, tweenInfo, {TextTransparency = 0})
+    local tweenMessage = TweenService:Create(messageLabel, tweenInfo, {TextTransparency = 0})
+    local tweenStatus = TweenService:Create(statusBar, tweenInfo, {BackgroundTransparency = 0})
+    local tweenShadow = TweenService:Create(frame.Shadow, tweenInfo, {BackgroundTransparency = 0.7})
+
+    tween:Play()
+    tweenTitle:Play()
+    tweenMessage:Play()
+    tweenStatus:Play()
+    tweenShadow:Play()
+
+    delay(duration or NOTIFICATION_DURATION, function()
+        local fadeInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        local fadeTween = TweenService:Create(frame, fadeInfo, {
+            Position = UDim2.new(0.5, 0, 0, 0), -- Fade out to very top
+            BackgroundTransparency = 1
+        })
+        local fadeTitle = TweenService:Create(titleLabel, fadeInfo, {TextTransparency = 1})
+        local fadeMessage = TweenService:Create(messageLabel, fadeInfo, {TextTransparency = 1})
+        local fadeStatus = TweenService:Create(statusBar, fadeInfo, {BackgroundTransparency = 1})
+        local fadeShadow = TweenService:Create(frame.Shadow, fadeInfo, {BackgroundTransparency = 1})
+        
+        fadeTween:Play()
+        fadeTitle:Play()
+        fadeMessage:Play()
+        fadeStatus:Play()
+        fadeShadow:Play()
+        
+        fadeTween.Completed:Connect(function()
+            frame.Visible = false
+        end)
+    end)
+end
+
+local function isPlayerModerator(player)
+	if ModCheck then
+		local success, inGroup = pcall(function()
+			return player:IsInGroup(GROUP_ID)
+		end)
+		
+		return success and inGroup
+	end
+	return false
+end
+
+local function updateModsList()
+    local currentMods = {}
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if isPlayerModerator(player) then
+            currentMods[player.UserId] = player.Name
+        end
+    end
+
+    for userId, playerName in pairs(currentMods) do
+        if not modsInGame[userId] then
+            showNotification(
+                "⚠️ MODERATOR JOINED ⚠️", 
+                playerName .. " is a moderator and has joined the game!", 
+                Color3.fromRGB(255, 50, 50) -- Red alert color
+            )
+        end
+    end
+    
+    for userId, playerName in pairs(modsInGame) do
+        if not currentMods[userId] then
+            showNotification(
+                "MOD LEFT", 
+                playerName .. " (moderator) has left the game", 
+                Color3.fromRGB(50, 150, 255) -- Blue info color
+            )
+        end
+    end
+
+    modsInGame = currentMods
+
+    if next(modsInGame) == nil and not noModsNotified then
+        showNotification(
+            "NO MODS IN GAME", 
+            "There are currently no moderators in the game. You'll be notified if any join.",
+            Color3.fromRGB(50, 200, 50) -- Green safe color
+        )
+        noModsNotified = true
+    elseif next(modsInGame) ~= nil then
+        noModsNotified = false
+    end
+end
+
+local function onPlayerAdded(player)
+    knownPlayers[player.UserId] = true
+    if isPlayerModerator(player) then
+        modsInGame[player.UserId] = player.Name
+        showNotification(
+            "⚠️ MODERATOR JOINED ⚠️", 
+            player.Name .. " is a moderator and has joined the game!", 
+            Color3.fromRGB(255, 50, 50) -- Red alert color
+        )
+        noModsNotified = false
+    end
+end
+
+local function onPlayerRemoving(player)
+    if modsInGame[player.UserId] then
+        showNotification(
+            "MOD LEFT", 
+            player.Name .. " (moderator) has left the game", 
+            Color3.fromRGB(50, 150, 255) -- Blue info color
+        )
+        modsInGame[player.UserId] = nil
+    end
+
+    knownPlayers[player.UserId] = nil
+
+    if next(modsInGame) == nil and not noModsNotified then
+        showNotification(
+            "NO MODS IN GAME", 
+            "There are currently no moderators in the game. You'll be notified if any join.",
+            Color3.fromRGB(50, 200, 50) -- Green safe color
+        )
+        noModsNotified = true
+    end
+end
+
+local function initialize()
+    Players.PlayerAdded:Connect(onPlayerAdded)
+    Players.PlayerRemoving:Connect(onPlayerRemoving)
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        knownPlayers[player.UserId] = true
+        if isPlayerModerator(player) then
+            modsInGame[player.UserId] = player.Name
+        end
+    end
+
+    showNotification(
+        "MOD DETECTOR ENABLED", 
+        "Now monitoring for Hood Customs moderators. Group ID: " .. GROUP_ID,
+        Color3.fromRGB(100, 100, 255) -- Purple setup color
+    )
+
+    if next(modsInGame) == nil then
+        delay(NOTIFICATION_DURATION + 1, function()
+            showNotification(
+                "NO MODS IN GAME", 
+                "There are currently no moderators in the game. You'll be notified if any join.",
+                Color3.fromRGB(50, 200, 50) -- Green safe color
+            )
+        end)
+        noModsNotified = true
+    else
+        local modList = "Moderators in game: "
+        local first = true
+        for _, name in pairs(modsInGame) do
+            if not first then
+                modList = modList .. ", "
+            end
+            modList = modList .. name
+            first = false
+        end
+        delay(NOTIFICATION_DURATION + 1, function()
+            showNotification(
+                "⚠️ MODS DETECTED ⚠️", 
+                modList,
+                Color3.fromRGB(255, 50, 50) -- Red alert color
+            )
+        end)
+    end
+    
+    spawn(function()
+        while wait(CHECK_INTERVAL) do
+            updateModsList()
+        end
+    end)
+end
+initialize()
